@@ -5,7 +5,7 @@ project(frame_merger C ASM_NASM)
 enable_language(ASM_NASM)
 
 # =========================================================
-# ARCHITECTURE OPTION (string-based, FIXED)
+# ARCHITECTURE OPTION
 # =========================================================
 set(TARGET_ARCH "x64" CACHE STRING "Target architecture (x86 or x64)")
 set_property(CACHE TARGET_ARCH PROPERTY STRINGS x86 x64)
@@ -18,54 +18,48 @@ if(WIN32)
 elseif(UNIX AND NOT APPLE)
     set(OS_TAG linux)
 elseif(APPLE)
-    set(OS_TAG mac)
+    message(FATAL_ERROR "macOS not currently supported")
 else()
     message(FATAL_ERROR "Unsupported OS")
 endif()
 
 # =========================================================
-# ARCHITECTURE CONFIG
+# ARCH DETECTION
 # =========================================================
 if(TARGET_ARCH STREQUAL "x86")
     set(ARCH_BITS 32)
-    set(NASM_FORMAT win32)
 elseif(TARGET_ARCH STREQUAL "x64")
     set(ARCH_BITS 64)
-    set(NASM_FORMAT win64)
 else()
     message(FATAL_ERROR "TARGET_ARCH must be x86 or x64")
 endif()
 
 # =========================================================
-# EXECUTABLE NAME (keep single binary)
+# NASM OUTPUT FORMAT
 # =========================================================
-set(EXE_NAME frame_merger)
+if(WIN32)
+
+    if(ARCH_BITS EQUAL 32)
+        set(NASM_FORMAT win32)
+    else()
+        set(NASM_FORMAT win64)
+    endif()
+
+elseif(UNIX)
+
+    if(ARCH_BITS EQUAL 32)
+        set(NASM_FORMAT elf32)
+    else()
+        set(NASM_FORMAT elf64)
+    endif()
+
+endif()
 
 # =========================================================
-# COMPILER FLAGS
+# C SETTINGS
 # =========================================================
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-
-if(MSVC)
-    # MSVC doesn't use -m32/-m64
-    # architecture handled by generator
-else()
-    if(ARCH_BITS EQUAL 32)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
-    else()
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m64")
-    endif()
-endif()
-
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra")
-
-# =========================================================
-# NASM RULE (FIXED)
-# =========================================================
-set(CMAKE_ASM_NASM_COMPILE_OBJECT
-    "<CMAKE_ASM_NASM_COMPILER> -f ${NASM_FORMAT} -o <OBJECT> <SOURCE>"
-)
 
 # =========================================================
 # SOURCES
@@ -84,14 +78,31 @@ set(ASM_SOURCES
 # =========================================================
 # EXECUTABLE
 # =========================================================
-add_executable(${EXE_NAME}
+add_executable(frame_merger
     ${C_SOURCES}
     ${ASM_SOURCES}
 )
 
 # =========================================================
-# OPTIONAL: enforce warnings + optimizations
+# NASM FLAGS
 # =========================================================
-if(NOT MSVC)
-    target_compile_options(${EXE_NAME} PRIVATE -O3)
+set_source_files_properties(
+    ${ASM_SOURCES}
+    PROPERTIES
+    LANGUAGE ASM_NASM
+)
+
+target_compile_options(frame_merger PRIVATE
+    $<$<COMPILE_LANGUAGE:C>:-Wall -Wextra -O3>
+)
+
+target_compile_options(frame_merger PRIVATE
+    $<$<COMPILE_LANGUAGE:ASM_NASM>:-f ${NASM_FORMAT}>
+)
+
+# =========================================================
+# LINUX LIBRARIES
+# =========================================================
+if(UNIX AND NOT APPLE)
+    target_link_libraries(frame_merger PRIVATE m pthread)
 endif()

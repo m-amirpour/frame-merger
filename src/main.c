@@ -9,6 +9,12 @@
 
 #define popen _popen
 #define pclose _pclose
+
+#else
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 #endif
 
 #define W 1796
@@ -33,7 +39,7 @@ typedef enum { MODE_C = 1, MODE_ASM = 2, MODE_SIMD = 3, MODE_BENCH = 4 } Mode;
 // ======================
 // helpers
 // ======================
-static void ensure_dirs() {
+static void ensure_dirs(void) {
 #ifdef _WIN32
   _mkdir("output");
 #else
@@ -44,11 +50,16 @@ static void ensure_dirs() {
 // ======================
 // alloc
 // ======================
-static unsigned char *alloc_buf() {
+static unsigned char *alloc_buf(void) {
 #ifdef _WIN32
   return (unsigned char *)_aligned_malloc(N_BYTES, 32);
 #else
-  return (unsigned char *)aligned_alloc(32, N_BYTES);
+  void *p = NULL;
+
+  if (posix_memalign(&p, 32, N_BYTES) != 0)
+    return NULL;
+
+  return (unsigned char *)p;
 #endif
 }
 
@@ -63,7 +74,7 @@ static void free_buf(void *p) {
 // ======================
 // timing
 // ======================
-static inline unsigned long long rdtsc() {
+static inline unsigned long long rdtsc(void) {
 #ifdef _WIN32
   return __rdtsc();
 #else
@@ -74,7 +85,7 @@ static inline unsigned long long rdtsc() {
 }
 
 // ======================
-// safe pipe open
+// ffmpeg helpers
 // ======================
 static FILE *ffmpeg_in(const char *cmd) {
   printf("[FFMPEG IN] %s\n", cmd);
@@ -99,22 +110,26 @@ void run_mode(int mode) {
 
   if (!a || !b || !out || !base) {
     printf("Memory allocation failed\n");
+
+    free_buf(a);
+    free_buf(b);
+    free_buf(out);
+    free_buf(base);
     return;
   }
 
-  // 🔥 IMPORTANT FIX: force constant fps in FFmpeg input
-  FILE *in1 = ffmpeg_in("ffmpeg -nostdin -loglevel error "
+  FILE *in1 = ffmpeg_in("ffmpeg -nostdin "
                         "-i vids/vid1_ready.mov "
                         "-vf scale=1796:738,format=rgb24,fps=60 "
                         "-f rawvideo -pix_fmt rgb24 pipe:1");
 
-  FILE *in2 = ffmpeg_in("ffmpeg -nostdin -loglevel error "
+  FILE *in2 = ffmpeg_in("ffmpeg -nostdin "
                         "-i vids/vid2_ready.mov "
                         "-vf scale=1796:738,format=rgb24,fps=60 "
                         "-f rawvideo -pix_fmt rgb24 pipe:1");
 
   FILE *pipeout =
-      popen("ffmpeg -y -loglevel error -nostdin "
+      popen("ffmpeg -y -nostdin "
             "-f rawvideo -pix_fmt rgb24 -s 1796x738 -r 60 -i pipe:0 "
             "-vf format=yuv420p "
             "-c:v libx264 -preset veryfast "
@@ -123,7 +138,23 @@ void run_mode(int mode) {
             "wb");
 
   if (!in1 || !in2 || !pipeout) {
+
     printf("FFmpeg pipe failed\n");
+
+    if (in1)
+      pclose(in1);
+
+    if (in2)
+      pclose(in2);
+
+    if (pipeout)
+      pclose(pipeout);
+
+    free_buf(a);
+    free_buf(b);
+    free_buf(out);
+    free_buf(base);
+
     return;
   }
 
@@ -153,8 +184,6 @@ void run_mode(int mode) {
       break;
 
     case MODE_SIMD:
-      // 🔥 CRITICAL FIX:
-      // ensure SIMD writes full valid buffer
       merge_frames_simd(H, W, a, b, base);
       fwrite(base, 1, N_BYTES, pipeout);
       break;
@@ -165,6 +194,10 @@ void run_mode(int mode) {
       merge_frames_simd(H, W, a, b, out);
       fwrite(base, 1, N_BYTES, pipeout);
       break;
+
+    default:
+      printf("Invalid mode\n");
+      goto cleanup;
     }
 
     t += rdtsc() - start;
@@ -174,6 +207,8 @@ void run_mode(int mode) {
   }
 
   printf("\nDONE\nCycles: %llu\n", t);
+
+cleanup:
 
   pclose(in1);
   pclose(in2);
@@ -188,12 +223,15 @@ void run_mode(int mode) {
 // ======================
 // main
 // ======================
-int main() {
+int main(void) {
   int choice;
 
   printf("\n1) C\n2) ASM\n3) SIMD\n4) BENCH\n> ");
-  scanf("%d", &choice);
+
+  if (scanf("%d", &choice) != 1)
+    return 1;
 
   run_mode(choice);
+
   return 0;
 }
