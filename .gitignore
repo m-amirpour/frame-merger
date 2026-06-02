@@ -1,0 +1,13 @@
+# build folders
+build32/
+build64/
+
+# output videos
+output/*
+*.mp4
+*.mov
+
+# but keep scripts inside vids
+vids/*
+!vids/*.ps1
+!.gitkeep

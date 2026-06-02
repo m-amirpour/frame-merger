@@ -1,0 +1,33 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "build32",
+      "generator": "MinGW Makefiles",
+      "binaryDir": "${sourceDir}/build32",
+      "cacheVariables": {
+        "TARGET_ARCH": "x86",
+        "CMAKE_C_COMPILER": "C:/msys64/mingw32/bin/i686-w64-mingw32-gcc.exe"
+      }
+    },
+    {
+      "name": "build64",
+      "generator": "MinGW Makefiles",
+      "binaryDir": "${sourceDir}/build64",
+      "cacheVariables": {
+        "TARGET_ARCH": "x64",
+        "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/x86_64-w64-mingw32-gcc.exe"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "build32",
+      "configurePreset": "build32"
+    },
+    {
+      "name": "build64",
+      "configurePreset": "build64"
+    }
+  ]
+}
