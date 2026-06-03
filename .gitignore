@@ -1,13 +1,18 @@
 # build folders
 build32/
 build64/
+build-win32/
+build-win64/
+build-linux32/
+build-linux64/
 
-# output videos
+# generated videos
 output/*
 *.mp4
 *.mov
 
-# but keep scripts inside vids
+# keep helper scripts and placeholder files
 vids/*
 !vids/*.ps1
-!.gitkeep
+!vids/*.sh
+!vids/.gitkeep
