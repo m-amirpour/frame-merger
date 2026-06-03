@@ -1,63 +1,66 @@
 {
-    "version": 3,
+  "version": 3,
 
-    "configurePresets": [
-        {
-            "name": "win64",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build64",
-            "cacheVariables": {
-                "TARGET_ARCH": "x64"
-            }
-        },
+  "configurePresets": [
+    {
+      "name": "linux64",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-linux64",
+      "cacheVariables": {
+        "TARGET_ARCH": "x64"
+      }
+    },
 
-        {
-            "name": "win32",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build32",
-            "cacheVariables": {
-                "TARGET_ARCH": "x86"
-            }
-        },
+    {
+      "name": "linux32",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-linux32",
+      "cacheVariables": {
+        "TARGET_ARCH": "x86"
+      }
+    },
 
-        {
-            "name": "linux64",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build-linux64",
-            "cacheVariables": {
-                "TARGET_ARCH": "x64"
-            }
-        },
+    {
+      "name": "win64",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-win64",
+      "cacheVariables": {
+        "TARGET_ARCH": "x64",
+        "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe",
+        "CMAKE_ASM_NASM_COMPILER": "C:/msys64/mingw64/bin/nasm.exe"
+      }
+    },
 
-        {
-            "name": "linux32",
-            "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build-linux32",
-            "cacheVariables": {
-                "TARGET_ARCH": "x86"
-            }
-        }
-    ],
+    {
+      "name": "win32",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-win32",
+      "cacheVariables": {
+        "TARGET_ARCH": "x86",
+        "CMAKE_C_COMPILER": "C:/msys64/mingw32/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "C:/msys64/mingw32/bin/g++.exe",
+        "CMAKE_ASM_NASM_COMPILER": "C:/msys64/mingw64/bin/nasm.exe"
+      }
+    }
+  ],
 
-    "buildPresets": [
-        {
-            "name": "build-win64",
-            "configurePreset": "win64"
-        },
-
-        {
-            "name": "build-win32",
-            "configurePreset": "win32"
-        },
-
-        {
-            "name": "build-linux64",
-            "configurePreset": "linux64"
-        },
-
-        {
-            "name": "build-linux32",
-            "configurePreset": "linux32"
-        }
-    ]
+  "buildPresets": [
+    {
+      "name": "build-linux64",
+      "configurePreset": "linux64"
+    },
+    {
+      "name": "build-linux32",
+      "configurePreset": "linux32"
+    },
+    {
+      "name": "build-win64",
+      "configurePreset": "win64"
+    },
+    {
+      "name": "build-win32",
+      "configurePreset": "win32"
+    }
+  ]
 }

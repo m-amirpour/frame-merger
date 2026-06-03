@@ -14,12 +14,19 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
 #endif
 
 #define W 1796
 #define H 738
 #define N_BYTES (W * H * 3)
+
+#ifdef _WIN32
+#define PIPE_READ_MODE "rb"
+#define PIPE_WRITE_MODE "wb"
+#else
+#define PIPE_READ_MODE "r"
+#define PIPE_WRITE_MODE "w"
+#endif
 
 // ======================
 // external functions
@@ -55,10 +62,8 @@ static unsigned char *alloc_buf(void) {
   return (unsigned char *)_aligned_malloc(N_BYTES, 32);
 #else
   void *p = NULL;
-
   if (posix_memalign(&p, 32, N_BYTES) != 0)
     return NULL;
-
   return (unsigned char *)p;
 #endif
 }
@@ -85,16 +90,26 @@ static inline unsigned long long rdtsc(void) {
 }
 
 // ======================
-// ffmpeg helpers
+// FFmpeg helpers
 // ======================
 static FILE *ffmpeg_in(const char *cmd) {
   printf("[FFMPEG IN] %s\n", cmd);
-  return popen(cmd, "rb");
+
+  FILE *f = popen(cmd, PIPE_READ_MODE);
+  if (!f)
+    perror("ffmpeg_in failed");
+
+  return f;
 }
 
 static FILE *ffmpeg_out(const char *cmd) {
   printf("[FFMPEG OUT] %s\n", cmd);
-  return popen(cmd, "wb");
+
+  FILE *f = popen(cmd, PIPE_WRITE_MODE);
+  if (!f)
+    perror("ffmpeg_out failed");
+
+  return f;
 }
 
 // ======================
@@ -110,21 +125,18 @@ void run_mode(int mode) {
 
   if (!a || !b || !out || !base) {
     printf("Memory allocation failed\n");
-
-    free_buf(a);
-    free_buf(b);
-    free_buf(out);
-    free_buf(base);
-    return;
+    goto cleanup;
   }
 
+  // NOTE:
+  // Use ../vids when running from build directory (Linux/Windows safe)
   FILE *in1 = ffmpeg_in("ffmpeg -nostdin "
-                        "-i vids/vid1_ready.mov "
+                        "-i ./vids/vid1_ready.mov "
                         "-vf scale=1796:738,format=rgb24,fps=60 "
                         "-f rawvideo -pix_fmt rgb24 pipe:1");
 
   FILE *in2 = ffmpeg_in("ffmpeg -nostdin "
-                        "-i vids/vid2_ready.mov "
+                        "-i ./vids/vid2_ready.mov "
                         "-vf scale=1796:738,format=rgb24,fps=60 "
                         "-f rawvideo -pix_fmt rgb24 pipe:1");
 
@@ -134,28 +146,20 @@ void run_mode(int mode) {
             "-vf format=yuv420p "
             "-c:v libx264 -preset veryfast "
             "-movflags +faststart "
-            "output/output.mp4",
-            "wb");
+            "./output/output.mp4",
+            PIPE_WRITE_MODE);
 
   if (!in1 || !in2 || !pipeout) {
-
     printf("FFmpeg pipe failed\n");
 
     if (in1)
       pclose(in1);
-
     if (in2)
       pclose(in2);
-
     if (pipeout)
       pclose(pipeout);
 
-    free_buf(a);
-    free_buf(b);
-    free_buf(out);
-    free_buf(base);
-
-    return;
+    goto cleanup;
   }
 
   unsigned long long t = 0;
@@ -210,9 +214,12 @@ void run_mode(int mode) {
 
 cleanup:
 
-  pclose(in1);
-  pclose(in2);
-  pclose(pipeout);
+  if (in1)
+    pclose(in1);
+  if (in2)
+    pclose(in2);
+  if (pipeout)
+    pclose(pipeout);
 
   free_buf(a);
   free_buf(b);
@@ -232,6 +239,5 @@ int main(void) {
     return 1;
 
   run_mode(choice);
-
   return 0;
 }
